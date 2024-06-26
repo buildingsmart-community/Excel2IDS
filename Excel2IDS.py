@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import openpyxl
 from ifctester import ids
 from tqdm import tqdm
@@ -183,7 +184,7 @@ def split_multiline(cell_value):
     return cell_value
 
 
-if __name__ == "__main__": 
+def ask_for_path():
     file_path = input(
         "\n\033[94mPlease enter the path to the Excel spreadsheet: \033[0m\n"
     )
@@ -191,14 +192,26 @@ if __name__ == "__main__":
         file_path = file_path[1:]
     if file_path[-1] == '"':
         file_path = file_path[:-1]
+    if file_path[-5:] != '.xlsx':
+        print("\033[31m\nThe file must be an .xlsx. Please check the path and try again.\033[0m")
+        ask_for_path()
 
     try:
         spreadsheet = openpyxl.load_workbook(file_path)
+        return spreadsheet, file_path
     except FileNotFoundError:
-        print("The file was not found. Please check the path and try again.")
+        print("\033[31m\nThe file was not found. Please check the path and try again.\033[0m")
+        ask_for_path()
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"\033[31m\nAn error occurred: {e}\033[0m")
+        print("\n\033[94mThe program will close automatically in 10 seconds...\033[0m\n")
+        time.sleep(10)
+        sys.exit()
 
+
+if __name__ == "__main__": 
+
+    spreadsheet, file_path = ask_for_path()
     ids_path = file_path.replace(".xlsx", ".ids")
 
     START_CELL = input(
@@ -212,4 +225,7 @@ if __name__ == "__main__":
 
     excel2ids(spreadsheet, ids_path)
 
-    input("\n\033[94mPress ENTER to close the program.\033[0m")
+    time.sleep(1)
+    print("\n\033[94mThe program will close automatically in 10 seconds...\033[0m\n")
+    time.sleep(10)
+    sys.exit()
