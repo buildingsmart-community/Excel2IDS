@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import copy
 import openpyxl
 from ifctester import ids
 from tqdm import tqdm
@@ -162,7 +163,7 @@ def add_to_ids(
     for spec in ids_list[ids_name].specifications:
         if spec.name == specification_name:
             # ADD req!
-            spec.requirements.extend(requirements)
+            spec.requirements += requirements
             exists = True
 
     if not exists:
@@ -172,8 +173,8 @@ def add_to_ids(
             ifcVersion=IFC_VERSION,
             # identifier=str(sheet[f'{ID_COL}{row}'].value.strip()),
         )
-        new_spec.applicability = applicability
-        new_spec.requirements = requirements
+        new_spec.applicability = copy.deepcopy(applicability)
+        new_spec.requirements = copy.deepcopy(requirements)
         ids_list[ids_name].specifications.append(new_spec)
 
 
