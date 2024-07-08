@@ -71,9 +71,6 @@ def excel2ids(spreadsheet, ids_path):
             pv = sheet[f"{column_letter}{PVAL_CODE_ROW}"].value
             if pv:
                 property.value = split_multiline(pv.strip())
-                # assuming that single values (not lists) are patterns:
-                if isinstance(property.value, str):
-                    property.value = ids.Restriction(options={"pattern": pv.strip()})
                 property.instructions = f"All objects with code like: '{pv.strip()}'"
             applicability.append(property)
         # TODO add classification
@@ -94,7 +91,9 @@ def excel2ids(spreadsheet, ids_path):
                     if sheet[f'{PVAL_COL}{row}'].value:
                         property.value = sheet[f'{PVAL_COL}{row}'].value.strip()
                     elif sheet[f'{PVAL_PATTERN_COL}{row}'].value:
-                        property.value = ids.Restriction(options={"pattern": sheet[f'{PVAL_PATTERN_COL}{row}'].value})
+                        property.value = split_multiline(sheet[f'{PVAL_PATTERN_COL}{row}'].value.strip())
+                        # TODO TEMP if isinstance(property.value, str):
+                        # TODO TEMP property.value = ids.Restriction(options={"pattern": sheet[f'{PVAL_PATTERN_COL}{row}'].value})
                     if sheet[f'{URI_COL}{row}'].value:
                         property.uri = sheet[f'{URI_COL}{row}'].value.strip()
                     requirements.append(property)
@@ -144,7 +143,10 @@ def add_to_ids(
     purpose="General specification",
     milestone="Handover",
 ):
-    """Add this specifiction to IDS file. If such IDS doesn't exist yet, create it."""
+    """Add this specifiction to IDS file. If such IDS doesn't exist yet, create it.
+    Known limitations: 
+    - the applicability is automatically set to 'minOccur'=0, meaning 'if exists'/'may occur' and does not trigger an error if no such element is found.
+    """
 
     if not ids_name in ids_list:
         # create new IDS
@@ -182,6 +184,8 @@ def split_multiline(cell_value):
     # if there are multiple lines in a single cell, split it into enumeration of literal values or patterns
     if "\n" in cell_value:
         cell_value = ids.Restriction(options={"enumeration": cell_value.split("\n")})
+    elif isinstance(cell_value, str):
+        cell_value = ids.Restriction(options={"pattern": cell_value})
     return cell_value
 
 
