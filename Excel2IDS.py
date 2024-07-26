@@ -182,12 +182,17 @@ def add_to_ids(
         ids_list[ids_name].specifications.append(new_spec)
 
 
-def split_multiline(cell_value):
-    # if there are multiple lines in a single cell, split it into enumeration of literal values or patterns
+QUOTED_PATTERN = r'^".*"$'
+
+def process_value(cell_value):
+    """ Look at the value and convert to enumeration of pattern if needed """
+    # if there are multiple lines in a single cell, split it into enumeration of literal values
     if "\n" in cell_value:
         cell_value = ids.Restriction(options={"enumeration": cell_value.split("\n")})
-    elif isinstance(cell_value, str):
-        cell_value = ids.Restriction(options={"pattern": cell_value})
+    # if it's in quotation, turn into pattern restriction (regex):
+    elif bool(re.match(QUOTED_PATTERN, cell_value)):
+        cell_value = ids.Restriction(options={"pattern": cell_value[1:-1]})
+    # in other cases, return as is (empty or literal value)
     return cell_value
 
 
