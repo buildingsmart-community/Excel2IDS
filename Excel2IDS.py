@@ -12,29 +12,12 @@ import json
 import re
 
 
-### settings:
-SHEET_NAME = 'Requirements'
-IFC_VERSION = "IFC4X3_ADD2"
-ID_COL = 'A'
-# applicability:
-NAME_ROW = 14
-ENTITY_ROW = 5
-PSET_CODE_ROW = 7
-PROP_CODE_ROW = 8
-PVAL_CODE_ROW = 9
-# req
-PSET_COL = 'C'
-PROP_COL = 'D'
-PVAL_COL = 'E'
-PVAL_PATTERN_COL = 'F'
-URI_COL = 'G'
-DTYPE_COL = 'H'
-# split:
-DISC_COL = "K"
-MILESTONE = "LOI400"
-
-ids_list = {}
-
+class Settings:
+    def __init__(self, settings_file):
+        with open(settings_file, 'r') as file:
+            settings_dict = json.load(file)
+        for key, value in settings_dict.items():
+            setattr(self, key, value)
 
 
 def not_empty(v):
@@ -50,81 +33,115 @@ def excel2ids(spreadsheet, ids_path):
     end_col = sheet.max_column + 1
 
     for col in tqdm(range(start_col, end_col), desc="Processing Excel columns."):
-
         column_letter = openpyxl.utils.get_column_letter(col)
-        specification_name = sheet[f"{column_letter}{NAME_ROW}"].value
+        specification_name = sheet[f"{column_letter}{s.SPE_NAME}"].value
 
-        ### add applicability
-        applicability = []
-        entity_cell = sheet[f'{column_letter}{ENTITY_ROW}'].value
-        if entity_cell:
-            if '.' in entity_cell:
-                entity = ids.Entity(name=entity_cell.split('.')[0].upper(), predefinedType=entity_cell.split('.')[1].upper())
-            else: 
-                entity = ids.Entity(name=split_multiline(entity_cell.upper()))
-            applicability.append(entity)
-        if sheet[f'{column_letter}{PROP_CODE_ROW}'].value:
-            property = ids.Property(
-                propertySet=sheet[f'{column_letter}{PSET_CODE_ROW}'].value.strip(), 
-                baseName=sheet[f'{column_letter}{PROP_CODE_ROW}'].value.strip(),
-                cardinality="required", # TODO should be optional
-                dataType='IFCLABEL',
+        if sheet[f'{column_letter}{s.APL_INCLUDE}'].value == 1:
+            ### add applicability
+            applicability = []
+            # TODO add entity and predefined type
+            entity_cell = sheet[f'{column_letter}{s.APL_ENTITY}'].value
+            if entity_cell:
+                if '.' in entity_cell:
+                    entity = ids.Entity(name=entity_cell.split('.')[0].upper(), predefinedType=entity_cell.split('.')[1].upper())
+                else: 
+                    entity = ids.Entity(name=process_value(entity_cell.upper()))
+                applicability.append(entity)
+            # add property
+            if sheet[f'{column_letter}{s.APL_PNAME}'].value:
+                property = ids.Property(
+                    propertySet=sheet[f'{column_letter}{s.APL_PSET}'].value.strip(), 
+                    baseName=sheet[f'{column_letter}{s.APL_PNAME}'].value.strip(),
+                    cardinality="required", # TODO should be optional(?)
+                    dataType='IFCLABEL',
+                    )
+                pv = sheet[f"{column_letter}{s.APL_PVAL}"].value
+                if not_empty(pv):
+                    property.value = process_value(pv.strip())
+                    property.instructions = f"All objects with code like: '{pv.strip()}'"
+                applicability.append(property)
+            # add classification
+            if sheet[f'{column_letter}{s.APL_CLASS_SYS}'].value:
+                classification = ids.Classification(
+                    system=sheet[f'{column_letter}{s.APL_CLASS_SYS}'].value.strip(),
+                    value=process_value(sheet[f'{column_letter}{s.APL_CLASS_CODE}'].value.strip())
                 )
-            pv = sheet[f"{column_letter}{PVAL_CODE_ROW}"].value
-            if pv:
-                property.value = split_multiline(pv.strip())
-                property.instructions = f"All objects with code like: '{pv.strip()}'"
-            applicability.append(property)
-        # TODO add classification
-        # TODO add material
+                applicability.append(classification)
+            # add material
+            if sheet[f'{column_letter}{s.APL_MATERIAL}'].value:
+                material = ids.Material(
+                    value=process_value(sheet[f'{column_letter}{s.APL_MATERIAL}'].value.strip())
+                )
+                applicability.append(material)
 
-        for row in range(start_row, end_row):
-            cell_value = sheet.cell(row=row, column=col).value
-            ### add requirement(s)
-            requirements = []
-            if cell_value in ["X", "x"]:
-                if sheet[f'{PROP_COL}{row}'].value:
-                    property = ids.Property(
-                    propertySet=sheet[f'{PSET_COL}{row}'].value.strip(), 
-                    baseName=sheet[f'{PROP_COL}{row}'].value.strip(),
-                    dataType=sheet[f'{DTYPE_COL}{row}'].value.strip().upper(),
-                    cardinality="required"
-                    )
-                    if sheet[f'{PVAL_COL}{row}'].value:
-                        property.value = sheet[f'{PVAL_COL}{row}'].value.strip()
-                    elif sheet[f'{PVAL_PATTERN_COL}{row}'].value:
-                        property.value = split_multiline(sheet[f'{PVAL_PATTERN_COL}{row}'].value.strip())
-                        # TODO TEMP if isinstance(property.value, str):
-                        # TODO TEMP property.value = ids.Restriction(options={"pattern": sheet[f'{PVAL_PATTERN_COL}{row}'].value})
-                    if sheet[f'{URI_COL}{row}'].value:
-                        property.uri = sheet[f'{URI_COL}{row}'].value.strip()
-                    requirements.append(property)
-                # TODO add classifications
-                # TODO add material
-                # TODO add entity/predefined type
-                # ids.Entity(name=sheet[f'{column_letter}{ROW_IFC}'].value.upper())
-            elif cell_value:
-                # assuming if a value is not 'x' it is list of possible entities
-                if '.' in cell_value:
-                    entity = ids.Entity(name=cell_value.split('.')[0].upper(), predefinedType=cell_value.split('.')[1].upper())
-                else:
-                    entity = ids.Entity(name=split_multiline(cell_value.upper()))
-                requirements.append(entity)
-            else:
-                # skip an empty cell
-                pass
+            for row in range(start_row, end_row):
+                if sheet[f'{s.REQ_INCLUDE}{row}'].value == 1:
 
-            if requirements:
-                disciplines = sheet[f"{DISC_COL}{row}"].value.split(",")
-                for discipline in disciplines:
-                    add_to_ids(
-                        discipline,
-                        specification_name,
-                        applicability,
-                        requirements,
-                        purpose=discipline,
-                        milestone=MILESTONE,
-                    )
+                    cell_value = sheet.cell(row=row, column=col).value
+                    ### add requirement(s)
+                    requirements = []
+                    if cell_value in ["X", "x"]:
+                        # add property
+                        if not_empty(sheet[f'{s.REQ_PNAME}{row}'].value):
+                            property = ids.Property(
+                            propertySet=sheet[f'{s.REQ_PSET}{row}'].value.strip(), 
+                            baseName=sheet[f'{s.REQ_PNAME}{row}'].value.strip(),
+                            dataType=sheet[f'{s.REQ_DTYPE}{row}'].value.strip().upper(),
+                            cardinality="required"
+                            )
+                            if not_empty(sheet[f'{s.REQ_PVAL}{row}'].value):
+                                property.value = sheet[f'{s.REQ_PVAL}{row}'].value.strip()
+                            elif not_empty(sheet[f'{s.REQ_PVAL_PATTERN}{row}'].value):
+                                property.value = process_value(sheet[f'{s.REQ_PVAL_PATTERN}{row}'].value.strip())
+                                # TODO TEMP if isinstance(property.value, str):
+                                # TODO TEMP property.value = ids.Restriction(options={"pattern": sheet[f'{REQ_PVAL_PATTERN}{row}'].value})
+                            if sheet[f'{s.REQ_URI}{row}'].value:
+                                property.uri = sheet[f'{s.REQ_URI}{row}'].value.strip()
+                            requirements.append(property)
+                        # add classification
+                        if sheet[f'{s.REQ_CLASS_SYS}{row}'].value:
+                            classification = ids.Classification(
+                                system=sheet[f'{s.REQ_CLASS_SYS}{row}'].value.strip(),
+                                value=process_value(sheet[f'{s.REQ_CLASS_CODE}{row}'].value.strip())
+                            )
+                            requirements.append(classification)
+                        # add material
+                        if sheet[f'{s.REQ_MATERIAL}{row}'].value:
+                            material = ids.Material(
+                                value=process_value(sheet[f'{s.REQ_MATERIAL}{row}'].value.strip())
+                            )
+                            requirements.append(material)
+                        # TODO add entity
+                        # entity_cell = sheet[f'{column_letter}{s.REQ_ENTITY}'].value
+                        # if entity_cell:
+                        #     if '.' in entity_cell:
+                        #         entity = ids.Entity(name=entity_cell.split('.')[0].upper(), predefinedType=entity_cell.split('.')[1].upper())
+                        #     else:
+                        #         entity = ids.Entity(name=process_value(entity_cell.upper()))
+                        #     requirements.append(entity)
+                    # ids.Entity(name=sheet[f'{column_letter}{REQ_IFC}'].value.upper())
+                    elif not_empty(cell_value):
+                        # assuming if a value is not 'x' it is list of possible entities
+                        if '.' in cell_value:
+                            entity = ids.Entity(name=cell_value.split('.')[0].upper(), predefinedType=cell_value.split('.')[1].upper())
+                        else:
+                            entity = ids.Entity(name=process_value(cell_value.upper()))
+                        requirements.append(entity)
+                    else:
+                        # skip an empty cell
+                        pass
+
+                    if requirements:
+                        disciplines = sheet[f"{col}{s.APP}"].value.split(",")
+                        for discipline in disciplines:
+                            add_to_ids(
+                                discipline,
+                                specification_name,
+                                applicability,
+                                requirements,
+                                purpose=discipline,
+                                milestone=s.MILESTONE,
+                            )
 
     ### Save all IDSes to files:
     for new_ids in tqdm(ids_list, desc="Generating separate .ids files."):
@@ -174,8 +191,8 @@ def add_to_ids(
         # create new spec
         new_spec = ids.Specification(
             name=specification_name,
-            ifcVersion=IFC_VERSION,
-            # identifier=str(sheet[f'{ID_COL}{row}'].value.strip()),
+            ifcVersion=s.IFC_VERSION,
+            # identifier=str(sheet[f'{REQ_ID}{row}'].value.strip()),
         )
         new_spec.applicability = copy.deepcopy(applicability)
         new_spec.requirements = copy.deepcopy(requirements)
@@ -227,6 +244,9 @@ def ask_for_path():
 
 
 if __name__ == "__main__": 
+
+    s = Settings('settings.json')
+    ids_list = {}
 
     spreadsheet, file_path = ask_for_path()
     ids_path = file_path.replace(".xlsx", ".ids")

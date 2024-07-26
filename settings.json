@@ -1,0 +1,51 @@
+{
+	"SHEET_NAME": "Requirements",
+
+	"IDS_TITLE": "H2",
+	"IDS_AUTHOR": "H3",
+	"IDS_DATE": "H4",
+	"IDS_VERSION": "H5",
+	"IDS_COPYRIGHT": "H6",
+	"IFC_VERSION": "H7",
+	"IFC_VERSION_DEFAULT": "IFC4X3_ADD2",
+	"IDS_DESCRIPTION": "H8",
+
+	"DEFAULT_START_CELL": "O19",
+	
+	"SPE_NAME": "1",
+	"SPE_DESCR": "2",
+	"SPE_INSTR": "3",
+	"SPE_IDENT": "4",
+	
+	"APL_CARDINAL": "5",
+	"APL_ENTITY": "6",
+	"APL_PRED_TYPE": "7",
+	"APL_PSET": "8",
+	"APL_PNAME": "9",
+	"APL_PVAL": "10",
+	"APL_PDTYPE": "11",
+	"APL_CLASS_SYS": "12",
+	"APL_CLASS_CODE": "13",
+	"APL_ANAME": "14",
+	"APL_AVALUE": "15",
+	"APL_MATERIAL": "16",
+
+	"APL_DISCIPLINE": "17",
+	"APL_INCLUDE": "18",
+
+	"REQ_ENTITY": "A",	
+	"REQ_PRED_TYPE": "B",	
+	"REQ_PSET": "C",
+	"REQ_PROP": "D",
+	"REQ_PVAL": "E",
+	"REQ_DTYPE": "F",	
+	"REQ_URI": "G",
+	"REQ_CLASS_SYS": "H",
+	"REQ_CLASS_CODE": "I",
+	"REQ_ANAME": "J",
+	"REQ_AVALUE": "K",
+	"REQ_MATERIAL": "L",
+	
+	"REQ_PHASE": "M",
+	"REQ_INCLUDE": "N"
+}
