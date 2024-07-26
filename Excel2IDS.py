@@ -1,5 +1,5 @@
 # Excel2IDS
-# Copyright (C) 2024 Artur Tomczak <artur.tomczak@buildingsmart.org>
+# Copyright (C) 2024 Artur Tomczak <artomczak@gmail.com>
 
 import os
 import sys
@@ -8,6 +8,8 @@ import copy
 import openpyxl
 from ifctester import ids
 from tqdm import tqdm
+import json
+import re
 
 
 ### settings:
@@ -34,18 +36,18 @@ MILESTONE = "LOI400"
 ids_list = {}
 
 
-def excel2ids(spreadsheet, ids_path):
 
-    sheet = spreadsheet[SHEET_NAME]
+def not_empty(v):
+    return not (v is None or v == '')
+
+
+def excel2ids(spreadsheet, ids_path):
+    sheet = spreadsheet[s.SHEET_NAME]
     # Define the starting cell of the assignment table
-    start_row = sheet[START_CELL].row
-    start_col = sheet[START_CELL].column
-    if END_CELL:
-        end_row = sheet[END_CELL].row+1
-        end_col = sheet[END_CELL].column+1
-    else:
-        end_row = sheet.max_row + 1
-        end_col = sheet.max_column + 1
+    start_row = s.DEFAULT_START_CELL.row
+    start_col = s.DEFAULT_START_CELL.column
+    end_row = sheet.max_row + 1
+    end_col = sheet.max_column + 1
 
     for col in tqdm(range(start_col, end_col), desc="Processing Excel columns."):
 
