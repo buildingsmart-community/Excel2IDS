@@ -191,27 +191,32 @@ def split_multiline(cell_value):
     return cell_value
 
 
+def color_text(text, color='blue'):
+    if color == 'blue':
+        text = '\033[94m' + text + '\033[0m'
+    elif color == 'red':
+        text = '\033[31m' + text + '\033[0m'
+    return text
+
+
 def ask_for_path():
-    file_path = input(
-        "\n\033[94mPlease enter the path to the Excel spreadsheet: \033[0m\n"
-    )
+    file_path = input(color_text("\nPlease enter the path to the Excel spreadsheet: \n"))
     if file_path[0] == '"':
         file_path = file_path[1:]
     if file_path[-1] == '"':
         file_path = file_path[:-1]
     if file_path[-5:] != '.xlsx':
-        print("\033[31m\nThe file must be an .xlsx. Please check the path and try again.\033[0m")
+        print(color_text("\nThe file must be an .xlsx. Please check the path and try again.", color='red'))
         ask_for_path()
-
     try:
         spreadsheet = openpyxl.load_workbook(file_path)
         return spreadsheet, file_path
     except FileNotFoundError:
-        print("\033[31m\nThe file was not found. Please check the path and try again.\033[0m")
+        print(color_text("\nThe file was not found. Please check the path and try again.", color='red'))
         ask_for_path()
     except Exception as e:
-        print(f"\033[31m\nAn error occurred: {e}\033[0m")
-        print("\n\033[94mThe program will close automatically in 10 seconds...\033[0m\n")
+        print(color_text(f"\nAn error occurred: {e}", color='red'))
+        print(color_text("\nThe program will close automatically in 10 seconds...\n"))
         time.sleep(10)
         sys.exit()
 
@@ -221,18 +226,9 @@ if __name__ == "__main__":
     spreadsheet, file_path = ask_for_path()
     ids_path = file_path.replace(".xlsx", ".ids")
 
-    START_CELL = input(
-        "\n\033[94mPlease enter the name of the first cell (top-left) of the assignment table (or hit enter to use default: L15): \033[0m\n"
-    )  # 'L15'
-    if not START_CELL:
-        START_CELL = 'L15'
-    END_CELL = input(
-        "\n\033[94mPlease enter the name of the last cell (bottom-right) of the assignment table (or hit enter to use default: last bottom-right cell): \033[0m\n"
-    )  # 'AS54'        # or leave empty for whole table
-
     excel2ids(spreadsheet, ids_path)
 
     time.sleep(1)
-    print("\n\033[94mThe program will close automatically in 10 seconds...\033[0m\n")
+    print(color_text("\nThe program will close automatically in 10 seconds...\n"))
     time.sleep(10)
     sys.exit()
