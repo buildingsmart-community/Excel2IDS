@@ -11,6 +11,30 @@ from tqdm import tqdm
 import json
 import re
 
+# TEST:
+# TODO regexes everywhere with "..." --> TEST
+# TODO discipline in column --> TEST
+# TODO split enums with new line or comma with or without spaces
+
+# Backlog:
+# TODO cardinality "APL_CARDINAL": 1,
+# TODO BONUS: replace "REPLACEME" replaces with "X"
+# TODO new template
+# TODO no settings - recognize the row/column
+# TODO warn on common errors like no predefined types in enums
+# TODO expose, currently hardcoded:	    "IFC_VERSION_DEFAULT": "IFC4X3_ADD2",
+# TODO expose, currently hardcoded:		"IDS_TITLE": "H2",
+# TODO expose, currently hardcoded:		"IDS_AUTHOR": "H3",
+# TODO expose, currently hardcoded:		"IDS_DATE": "H4",
+# TODO expose, currently hardcoded:		"IDS_VERSION": "H5",
+# TODO expose, currently hardcoded:		"IDS_COPYRIGHT": "H6",
+# TODO expose, currently hardcoded:		"IFC_VERSION": "H7",
+# TODO expose, currently hardcoded:		"IFC_VERSION_DEFAULT": "IFC4X3_ADD2",
+# TODO expose, currently hardcoded:		"IDS_DESCRIPTION": "H8",
+# TODO expose, currently hardcoded:		"SPE_DESCR": 1,
+# TODO expose, currently hardcoded:		"SPE_INSTR": 1,
+# TODO expose, currently hardcoded:		"SPE_IDENT": 1,
+
 
 class Settings:
     def __init__(self, settings_file):

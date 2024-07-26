@@ -42,5 +42,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-	icon='C:\\Code\\Excel2IDS\\ids-logo.ico',
+	icon='C:\\Code\\Excel2IDS\\logo\\Excel2IDS.ico',
 )
