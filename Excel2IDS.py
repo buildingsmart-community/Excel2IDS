@@ -10,30 +10,7 @@ from ifctester import ids
 from tqdm import tqdm
 import json
 import re
-
-# TEST:
-# TODO regexes everywhere with "..." --> TEST
-# TODO discipline in column --> TEST
-# TODO split enums with new line or comma with or without spaces
-
-# Backlog:
-# TODO cardinality "APL_CARDINAL": 1,
-# TODO BONUS: replace "REPLACEME" replaces with "X"
-# TODO new template
-# TODO no settings - recognize the row/column
-# TODO warn on common errors like no predefined types in enums
-# TODO expose, currently hardcoded:	    "IFC_VERSION_DEFAULT": "IFC4X3_ADD2",
-# TODO expose, currently hardcoded:		"IDS_TITLE": "H2",
-# TODO expose, currently hardcoded:		"IDS_AUTHOR": "H3",
-# TODO expose, currently hardcoded:		"IDS_DATE": "H4",
-# TODO expose, currently hardcoded:		"IDS_VERSION": "H5",
-# TODO expose, currently hardcoded:		"IDS_COPYRIGHT": "H6",
-# TODO expose, currently hardcoded:		"IFC_VERSION": "H7",
-# TODO expose, currently hardcoded:		"IFC_VERSION_DEFAULT": "IFC4X3_ADD2",
-# TODO expose, currently hardcoded:		"IDS_DESCRIPTION": "H8",
-# TODO expose, currently hardcoded:		"SPE_DESCR": 1,
-# TODO expose, currently hardcoded:		"SPE_INSTR": 1,
-# TODO expose, currently hardcoded:		"SPE_IDENT": 1,
+import datetime
 
 
 class Settings:
@@ -44,8 +21,8 @@ class Settings:
             setattr(self, key, value)
 
 
-def not_empty(v):
-    return not (v is None or v == '')
+def isempty(v):
+    return (v is None or v == '')
 
 
 def excel2ids(spreadsheet, ids_path):
@@ -58,7 +35,6 @@ def excel2ids(spreadsheet, ids_path):
 
     for col in tqdm(range(start_col, end_col), desc="Processing Excel columns."):
         column_letter = openpyxl.utils.get_column_letter(col)
-        specification_name = sheet[f"{column_letter}{s.SPE_NAME}"].value
 
         if sheet[f'{column_letter}{s.APL_INCLUDE}'].value:
             ### add applicability
@@ -80,29 +56,27 @@ def excel2ids(spreadsheet, ids_path):
                 property = ids.Property(
                     propertySet=process_value(sheet[f'{column_letter}{s.APL_PSET}'].value), 
                     baseName=process_value(sheet[f'{column_letter}{s.APL_PNAME}'].value),
-                    dataType=process_value(sheet[f'{column_letter}{s.APL_PDTYPE}'].value),
-                    cardinality="required", # TODO should be optional(?)
-                    )
+                    dataType=process_value(sheet[f'{column_letter}{s.APL_PDTYPE}'].value)
+                    )             
                 pv = sheet[f"{column_letter}{s.APL_PVAL}"].value
-                if not_empty(pv):
+                if not isempty(pv):
                     property.value = process_value(pv)
-                    property.instructions = f"All objects with code like: '{pv}'"
                 applicability.append(property)
             # add classification
-            if not_empty(sheet[f'{column_letter}{s.APL_CLASS_SYS}'].value):
+            if not isempty(sheet[f'{column_letter}{s.APL_CLASS_SYS}'].value):
                 classification = ids.Classification(
                     system=process_value(sheet[f'{column_letter}{s.APL_CLASS_SYS}'].value),
                     value=process_value(sheet[f'{column_letter}{s.APL_CLASS_CODE}'].value))
                 applicability.append(classification)
             # add attribute
-            if not_empty(sheet[f'{column_letter}{s.APL_ANAME}'].value):
+            if not isempty(sheet[f'{column_letter}{s.APL_ANAME}'].value):
                 attribute = ids.Attribute(
                     name=process_value(sheet[f'{column_letter}{s.APL_ANAME}'].value),
                     value=process_value(sheet[f'{column_letter}{s.APL_AVALUE}'].value)
                 )
                 applicability.append(attribute)
             # add material
-            if not_empty(sheet[f'{column_letter}{s.APL_MATERIAL}'].value):
+            if not isempty(sheet[f'{column_letter}{s.APL_MATERIAL}'].value):
                 material = ids.Material(
                     value=process_value(sheet[f'{column_letter}{s.APL_MATERIAL}'].value)
                 )
@@ -112,94 +86,176 @@ def excel2ids(spreadsheet, ids_path):
             requirements = []
             for row in range(start_row, end_row):
                 if sheet[f'{s.REQ_INCLUDE}{row}'].value:
-
                     cell_value = sheet.cell(row=row, column=col).value
-                    if cell_value in ["X", "x"]:
-                        # add entity and predefined type
-                        entity_cell = process_value(sheet[f'{s.REQ_ENTITY}{row}'].value)
-                        predefined_type_cell = process_value(sheet[f'{s.REQ_PRED_TYPE}{row}'].value)
-                        if entity_cell:
-                            if predefined_type_cell:
-                                entity = ids.Entity(name=entity_cell, predefinedType=predefined_type_cell)
-                            else:
-                                entity = ids.Entity(name=entity_cell)
-                            requirements.append(entity)
-                        # add property
-                        if not_empty(sheet[f'{s.REQ_PNAME}{row}'].value):
-                            property = ids.Property(
-                                propertySet=process_value(sheet[f'{s.REQ_PSET}{row}'].value), 
-                                baseName=process_value(sheet[f'{s.REQ_PNAME}{row}'].value),
-                                dataType=process_value(sheet[f'{s.REQ_PDTYPE}{row}'].value),
-                                cardinality="required"
-                            )
-                            if not_empty(sheet[f'{s.REQ_PVAL}{row}'].value):
-                                property.value = process_value(sheet[f'{s.REQ_PVAL}{row}'].value)
-                            if not_empty(sheet[f'{s.REQ_URI}{row}'].value):
-                                property.uri = process_value(sheet[f'{s.REQ_URI}{row}'].value)
-                            requirements.append(property)
-                        # add classification
-                        if not_empty(sheet[f'{s.REQ_CLASS_SYS}{row}'].value):
-                            classification = ids.Classification(
-                                system=process_value(sheet[f'{s.REQ_CLASS_SYS}{row}'].value),
-                                value=process_value(sheet[f'{s.REQ_CLASS_CODE}{row}'].value)
-                            )
-                            requirements.append(classification)
-                        # add attribute
-                        if not_empty(sheet[f'{s.REQ_ANAME}{row}'].value):
-                            attribute = ids.Attribute(
-                                name=process_value(sheet[f'{s.REQ_ANAME}{row}'].value),
-                                value=process_value(sheet[f'{s.REQ_AVALUE}{row}'].value)
-                            )
-                            applicability.append(attribute)
-                        # add material
-                        if not_empty(sheet[f'{s.REQ_MATERIAL}{row}'].value):
-                            material = ids.Material(
-                                value=process_value(sheet[f'{s.REQ_MATERIAL}{row}'].value)
-                            )
-                            requirements.append(material)
-                        # TODO add entity
-                        # entity_cell = sheet[f'{column_letter}{s.REQ_ENTITY}'].value
-                        # if entity_cell:
-                        #     if '.' in entity_cell:
-                        #         entity = ids.Entity(name=entity_cell.split('.')[0].upper(), predefinedType=entity_cell.split('.')[1].upper())
-                        #     else:
-                        #         entity = ids.Entity(name=process_value(entity_cell.upper()))
-                        #     requirements.append(entity)
-                    # ids.Entity(name=sheet[f'{column_letter}{REQ_IFC}'].value.upper())
-                    elif not_empty(cell_value):
-                        # TODO process 'REPLACEME'
-                        # TEMP workaround, assuming if not X it must be entity!:                    
-                        if '.' in cell_value:
-                            entity = ids.Entity(name=cell_value.split('.')[0], predefinedType=cell_value.split('.')[1])
+                    if not isempty(cell_value):
+                        if cell_value.strip().upper() == "X":
+                            instructions = sheet[f'{s.REQ_INSTRUCTIONS}{row}'].value
+                            # add entity and predefined type
+                            entity_cell = process_value(sheet[f'{s.REQ_ENTITY}{row}'].value)
+                            predefined_type_cell = process_value(sheet[f'{s.REQ_PRED_TYPE}{row}'].value)
+                            if entity_cell:
+                                if predefined_type_cell:
+                                    entity = ids.Entity(name=entity_cell, predefinedType=predefined_type_cell)
+                                else:
+                                    entity = ids.Entity(name=entity_cell)
+                                if instructions:
+                                    entity.instructions=instructions
+                                requirements.append(entity)
+                            # add property
+                            if not isempty(sheet[f'{s.REQ_PNAME}{row}'].value):
+                                property = ids.Property(
+                                    propertySet=process_value(sheet[f'{s.REQ_PSET}{row}'].value), 
+                                    baseName=process_value(sheet[f'{s.REQ_PNAME}{row}'].value),
+                                    dataType=process_value(sheet[f'{s.REQ_PDTYPE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if not isempty(sheet[f'{s.REQ_PVAL}{row}'].value):
+                                    property.value = process_value(sheet[f'{s.REQ_PVAL}{row}'].value)
+                                if not isempty(sheet[f'{s.REQ_URI}{row}'].value):
+                                    property.uri = process_value(sheet[f'{s.REQ_URI}{row}'].value)
+                                if instructions:
+                                    property.instructions=instructions
+                                requirements.append(property)
+                            # add classification
+                            if not isempty(sheet[f'{s.REQ_CLASS_SYS}{row}'].value):
+                                classification = ids.Classification(
+                                    system=process_value(sheet[f'{s.REQ_CLASS_SYS}{row}'].value),
+                                    value=process_value(sheet[f'{s.REQ_CLASS_CODE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if not isempty(sheet[f'{s.REQ_CLASS_URI}{row}'].value):
+                                    classification.uri = process_value(sheet[f'{s.REQ_CLASS_URI}{row}'].value)
+                                if instructions:
+                                    classification.instructions=instructions
+                                requirements.append(classification)
+                            # add attribute
+                            if not isempty(sheet[f'{s.REQ_ANAME}{row}'].value):
+                                attribute = ids.Attribute(
+                                    name=process_value(sheet[f'{s.REQ_ANAME}{row}'].value),
+                                    value=process_value(sheet[f'{s.REQ_AVALUE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if instructions:
+                                    attribute.instructions=instructions
+                                requirements.append(attribute)
+                            # add material
+                            if not isempty(sheet[f'{s.REQ_MATERIAL}{row}'].value):
+                                material = ids.Material(
+                                    value=process_value(sheet[f'{s.REQ_MATERIAL}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if instructions:
+                                    material.instructions=instructions
+                                requirements.append(material)         
                         else:
-                            entity = ids.Entity(name=process_value(cell_value))
-                        requirements.append(entity)
-                    else:
-                        # skip an empty cell
-                        pass
+                            # process 'REPLACEME'
+                            cell_value = process_value(cell_value)
+                            if sheet[f'{s.REQ_ENTITY}{row}'].value == 'REPLACEME':
+                                if predefined_type_cell:
+                                    facet = ids.Entity(name=cell_value, predefinedType=predefined_type_cell)
+                                else:
+                                    facet = ids.Entity(name=cell_value)
+                            elif sheet[f'{s.REQ_PSET}{row}'].value == 'REPLACEME':
+                                facet = ids.Property(
+                                    propertySet=cell_value, 
+                                    baseName=process_value(sheet[f'{s.REQ_PNAME}{row}'].value),
+                                    dataType=process_value(sheet[f'{s.REQ_PDTYPE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if not isempty(sheet[f'{s.REQ_PVAL}{row}'].value):
+                                    property.value = process_value(sheet[f'{s.REQ_PVAL}{row}'].value)
+                                if not isempty(sheet[f'{s.REQ_URI}{row}'].value):
+                                    property.uri = process_value(sheet[f'{s.REQ_URI}{row}'].value)
+                            elif sheet[f'{s.REQ_PNAME}{row}'].value == 'REPLACEME':
+                                facet = ids.Property(
+                                    propertySet=process_value(sheet[f'{s.REQ_PSET}{row}'].value), 
+                                    baseName=cell_value,
+                                    dataType=process_value(sheet[f'{s.REQ_PDTYPE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )
+                                if not isempty(sheet[f'{s.REQ_PVAL}{row}'].value):
+                                    property.value = process_value(sheet[f'{s.REQ_PVAL}{row}'].value)
+                                if not isempty(sheet[f'{s.REQ_URI}{row}'].value):
+                                    property.uri = process_value(sheet[f'{s.REQ_URI}{row}'].value)
+                            elif sheet[f'{s.REQ_PVAL}{row}'].value == 'REPLACEME':
+                                facet = ids.Property(
+                                    propertySet=process_value(sheet[f'{s.REQ_PSET}{row}'].value), 
+                                    baseName=process_value(sheet[f'{s.REQ_PNAME}{row}'].value),
+                                    dataType=process_value(sheet[f'{s.REQ_PDTYPE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value),
+                                    value = cell_value
+                                )
+                                if not isempty(sheet[f'{s.REQ_URI}{row}'].value):
+                                    property.uri = process_value(sheet[f'{s.REQ_URI}{row}'].value)
+                            elif sheet[f'{s.REQ_CLASS_SYS}{row}'].value == 'REPLACEME':
+                                facet = ids.Classification(
+                                    system=cell_value,
+                                    value=process_value(sheet[f'{s.REQ_CLASS_CODE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                    )
+                                if not isempty(sheet[f'{s.REQ_CLASS_URI}{row}'].value):
+                                    facet.uri = process_value(sheet[f'{s.REQ_CLASS_URI}{row}'].value)
+                            elif sheet[f'{s.REQ_CLASS_CODE}{row}'].value == 'REPLACEME':
+                                facet = ids.Classification(
+                                    system=process_value(sheet[f'{s.REQ_CLASS_SYS}{row}'].value),
+                                    value=cell_value,
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                    )
+                                if not isempty(sheet[f'{s.REQ_CLASS_URI}{row}'].value):
+                                    facet.uri = process_value(sheet[f'{s.REQ_CLASS_URI}{row}'].value)
+                            elif sheet[f'{s.REQ_ANAME}{row}'].value == 'REPLACEME':
+                                facet = ids.Attribute(
+                                    name=cell_value,
+                                    value=process_value(sheet[f'{s.REQ_AVALUE}{row}'].value),
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )       
+                            elif sheet[f'{s.REQ_AVALUE}{row}'].value == 'REPLACEME':
+                                facet = ids.Attribute(
+                                    name=process_value(sheet[f'{s.REQ_ANAME}{row}'].value),
+                                    value=cell_value,
+                                    cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value)
+                                )                                          
+                            elif sheet[f'{s.REQ_MATERIAL}{row}'].value == 'REPLACEME':
+                                facet = ids.Material(value=cell_value, cardinality=process_value(sheet[f'{s.REQ_CARDINAL}{row}'].value))
+                            
+                            if facet:
+                                if instructions:
+                                    facet.instructions=instructions
+                                requirements.append(facet)
+                            else:
+                                print(color_text(f"The only allowed values are 'X' and 'REPLACEME' but your table has: '{cell_value}'.", color='red'))
 
             if requirements:
-                disciplines = split_multivalue(sheet[f"{column_letter}{s.APL_DISCIPLINE}"].value)
+                disciplines = split_multivalue(sheet[f"{column_letter}{s.APL_PURPOSE}"].value)
                 ifc_version = sheet[s.IFC_VERSION].value
                 if not ifc_version in ['IFC2X3','IFC4','IFC4X3_ADD2']:
                     ifc_version = s.IFC_VERSION_DEFAULT
                 for discipline in disciplines:
                     add_to_ids(
-                        discipline,
-                        specification_name,
                         applicability,
                         requirements,
+                        apl_cardinality=sheet[f'{column_letter}{s.APL_CARDINAL}'].value,
                         purpose=discipline,
-                        #TODO process phases, below TEMP workarond with fixed milestone
+                        spec_name=sheet[f"{column_letter}{s.SPE_NAME}"].value,
+                        spec_description=sheet[f"{column_letter}{s.SPE_DESCR}"].value,
+                        spec_instructions=sheet[f"{column_letter}{s.SPE_INSTR}"].value,
+                        spec_identifier=sheet[f"{column_letter}{s.SPE_IDENT}"].value,
+                        #TODO process milestone/phases REQ_MILESTONE
                         milestone=MILESTONE,
-                        ifc_version=ifc_version
+                        ifc_version=ifc_version,
+                        title=sheet[s.IDS_TITLE].value,
+                        author=sheet[s.IDS_AUTHOR].value,
+                        date=sheet[s.IDS_DATE].value,
+                        version=sheet[s.IDS_VERSION].value,
+                        copyright=sheet[s.IDS_COPYRIGHT].value,
+                        description=sheet[s.IDS_DESCRIPTION].value,
                     )
 
     ### Save all IDSes to files:
     for new_ids in tqdm(ids_list, desc="Generating separate .ids files."):
         ids_list[new_ids].to_xml(ids_path.replace(".ids", "_" + new_ids + ".ids"))
     print(
-        f"\n\033[92mSuccess! {len(ids_list)} IDS files were saved in {os.path.dirname(ids_path)}.\033[0m"
+        color_text(f"Success! {len(ids_list)} IDS files were saved in {os.path.dirname(ids_path)}.", color='green')
     )
 
     # Close the spreadsheet
@@ -207,35 +263,48 @@ def excel2ids(spreadsheet, ids_path):
 
 
 def add_to_ids(
-    ids_name,
-    specification_name,
     applicability,
     requirements,
-    purpose="General specification",
+    apl_cardinality="required",
+    purpose="General",
     milestone="Handover",
+    spec_name="Specification name",
+    spec_description="",
+    spec_instructions="",
+    spec_identifier="",
     ifc_version="IFC4X3_ADD2",
+    title="Generic IDS title",
+    author="Anonymous",
+    date=datetime.date.today(),
+    version="0.1",
+    copyright="No copyright",
+    description="",
 ):
     """Add this specifiction to IDS file. If such IDS doesn't exist yet, create it.
-    Known limitations: 
+    TODO Known limitations: 
     - the applicability is automatically set to 'minOccur'=0, meaning 'if exists'/'may occur' and does not trigger an error if no such element is found.
     """
 
-    if not ids_name in ids_list:
+    if isinstance(date,datetime.datetime):
+        date = date.strftime("%Y-%m-%d")
+
+    if not purpose in ids_list:
         # create new IDS
-        ids_list[ids_name] = ids.Ids(
-            title="This is an IDS experiment",
-            author="technical@buildingsmart.org",
-            version="0.1",
-            description="This IDS was generated by a script based on the spreadsheet input.",
-            date="2024-04-29",
+        ids_list[purpose] = ids.Ids(
+            title=title,
+            author=author,
+            version=str(version),
+            description=description,
+            copyright=copyright,
+            date=date,
             purpose=purpose,
             milestone=milestone
         )
 
     # check if this IDS already has such category (applicability)
     exists = False
-    for spec in ids_list[ids_name].specifications:
-        if spec.name == specification_name:
+    for spec in ids_list[purpose].specifications:
+        if spec.name == spec_name:
             # ADD req!
             spec.requirements += requirements
             exists = True
@@ -243,29 +312,41 @@ def add_to_ids(
     if not exists:
         # create new spec
         new_spec = ids.Specification(
-            name=specification_name,
+            name=spec_name,
+            minOccurs=1,
+            maxOccurs='unbounded',
             ifcVersion=ifc_version,
-            # identifier=str(sheet[f'{REQ_ID}{row}'].value.strip()),
+            identifier=spec_identifier,
+            description=spec_description,
+            instructions=spec_instructions,
         )
+
+        if apl_cardinality == 'prohibited':
+            new_spec.minOccurs=0
+            new_spec.maxOccurs=0
+        elif apl_cardinality == 'optional':
+            new_spec.minOccurs=0
+            new_spec.maxOccurs='unbounded'
+
         new_spec.applicability = copy.deepcopy(applicability)
         new_spec.requirements = copy.deepcopy(requirements)
-        ids_list[ids_name].specifications.append(new_spec)
+        ids_list[purpose].specifications.append(new_spec)
 
 
 QUOTED_PATTERN = r'^".*"$'
 
 def process_value(cell_value):
-    """ Look at the value and convert to enumeration of pattern if needed """
-    if not_empty(cell_value):
-        # remove trailing spaces (unless non-string)
+    """ Look at the value and convert to enumeration or pattern if needed """
+    if not isempty(cell_value):
         if isinstance(cell_value, str):
+            # remove trailing spaces
             cell_value=cell_value.strip()
-            # if there are multiple lines in a single cell, split it into enumeration of literal values
-            if "\n" in cell_value or "," in cell_value or ";" in cell_value :
-                cell_value = ids.Restriction(options={"enumeration": split_multivalue(cell_value)})
             # if it's in quotation, turn into pattern restriction (regex):
-            elif bool(re.match(QUOTED_PATTERN, cell_value)):
+            if bool(re.match(QUOTED_PATTERN, cell_value)):
                 cell_value = ids.Restriction(options={"pattern": cell_value[1:-1]})
+            # if there are multiple lines in a single cell, split it into enumeration of literal values
+            elif "\n" in cell_value or "," in cell_value or ";" in cell_value:
+                cell_value = ids.Restriction(options={"enumeration": split_multivalue(cell_value)})
             # in other cases, return as is (empty or literal value)
         elif isinstance(cell_value, bool):
             cell_value=str(cell_value)
@@ -284,6 +365,8 @@ def color_text(text, color='blue'):
         text = '\033[94m' + text + '\033[0m'
     elif color == 'red':
         text = '\033[31m' + text + '\033[0m'
+    elif color == 'green':
+        text = '\033[92m' + text + '\033[0m'
     return text
 
 
@@ -317,11 +400,11 @@ if __name__ == "__main__":
     spreadsheet, file_path = ask_for_path()
     ids_path = file_path.replace(".xlsx", ".ids")
 
-    MILESTONE = 'LOD400' #TODO TEMP workaround for phases
+    MILESTONE = 'LOD400' #TODO TEMP workaround for phases/milestones
 
     excel2ids(spreadsheet, ids_path)
 
     time.sleep(1)
-    print(color_text("\nThe program will close automatically in 10 seconds...\n"))
-    time.sleep(10)
+    print(color_text("\nThe program will close automatically in 5 seconds...\n"))
+    time.sleep(6)
     sys.exit()
