@@ -8,7 +8,7 @@ An Excel template and tool to help generate IDS specifications.
 
 
 2. Fill in the Excel file with your specifications (instructions inside)
-![image](https://github.com/user-attachments/assets/f8fad5ab-1b65-4422-b27f-70607a2a1ae2)
+![image](https://github.com/user-attachments/assets/31782fd4-6bb4-49b5-86a3-7ee93150114e)
 
 
 3. Run the .exe tool and paste the path to the Excel file. The tool will generate as many IDS files as 'purposes'/'disciplines' found in the file, and save them in the same folder as the Excel file. 
