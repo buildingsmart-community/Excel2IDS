@@ -39,6 +39,7 @@ def excel2ids(spreadsheet, ids_path):
         if sheet[f'{column_letter}{s.APL_INCLUDE}'].value:
             ### add applicability
             applicability = []
+            cardinality = sheet[f'{column_letter}{s.APL_CARDINAL}'].value
             # add entity and predefined type
             entity_cell = process_value(sheet[f'{column_letter}{s.APL_ENTITY}'].value)
             predefined_type_cell = process_value(sheet[f'{column_letter}{s.APL_PRED_TYPE}'].value)
@@ -225,7 +226,7 @@ def excel2ids(spreadsheet, ids_path):
                             else:
                                 print(color_text(f"The only allowed values are 'X' and 'REPLACEME' but your table has: '{cell_value}'.", color='red'))
 
-            if requirements:
+            if requirements or cardinality == 'prohibited':
                 disciplines = split_multivalue(sheet[f"{column_letter}{s.APL_PURPOSE}"].value)
                 ifc_version = sheet[s.IFC_VERSION].value
                 if not ifc_version in ['IFC2X3','IFC4','IFC4X3_ADD2']:
@@ -234,7 +235,7 @@ def excel2ids(spreadsheet, ids_path):
                     add_to_ids(
                         applicability,
                         requirements,
-                        apl_cardinality=sheet[f'{column_letter}{s.APL_CARDINAL}'].value,
+                        apl_cardinality=cardinality,
                         purpose=discipline,
                         spec_name=sheet[f"{column_letter}{s.SPE_NAME}"].value,
                         spec_description=sheet[f"{column_letter}{s.SPE_DESCR}"].value,
